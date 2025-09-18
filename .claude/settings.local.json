@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(pio run:*)",
+      "Bash(platformio run:*)",
+      "Read(//usr/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
