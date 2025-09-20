@@ -33,6 +33,9 @@ private:
     // Pointer to global currentMode variable
     int* currentModePtr;
 
+    // UTC timestamp storage
+    unsigned long utcTimestamp;
+
 public:
     DataMode();
 
@@ -43,6 +46,15 @@ public:
     void stopLogging();
     bool getIsLogging();
     void setModePointer(int* modePtr);
+    void setUTCTimestamp(unsigned long timestamp);
+
+    // Methods to get collected data for sending
+    float* getAxSamples();
+    float* getAySamples();
+    float* getAzSamples();
+    int getCollectedSamples();
+    float getCurrentODR();
+    unsigned long getLoggingDuration();
 
 private:
     bool initializeAccelerometer();

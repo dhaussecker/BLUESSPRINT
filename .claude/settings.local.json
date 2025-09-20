@@ -4,7 +4,10 @@
       "Bash(grep:*)",
       "Bash(pio run:*)",
       "Bash(platformio run:*)",
-      "Read(//usr/**)"
+      "Read(//usr/**)",
+      "Bash(~/.platformio/penv/bin/platformio run)",
+      "Read(//home/**)",
+      "Read(//mnt/c/Users/dylan/**)"
     ],
     "deny": [],
     "ask": []

@@ -21,7 +21,7 @@ bool lsm6dsox_found = false;
 
 DataMode::DataMode() : initialized(false), accelerometerReady(false), lastSample(0),
     isLogging(false), loggingStartTime(0), current_odr(26.0f),
-    logging_duration(10000), collected_samples(0), notecard(nullptr), currentModePtr(nullptr) {
+    logging_duration(10000), collected_samples(0), notecard(nullptr), currentModePtr(nullptr), utcTimestamp(0) {
 
     // Calculate sample interval from ODR
     sample_interval_ms = (unsigned long)(1000.0f / current_odr);
@@ -296,7 +296,7 @@ void DataMode::writeBinaryData() {
         JAddNumberToObject(body, "format", 1);  // 1 = float32 ax,ay,az format
         JAddNumberToObject(body, "rate_hz", current_odr);
         JAddNumberToObject(body, "duration_ms", logging_duration);
-        JAddNumberToObject(body, "timestamp", millis()); // Using millis as timestamp
+        JAddNumberToObject(body, "timestamp", utcTimestamp); // Using UTC timestamp
     }
 
     bool success = notecard->sendRequest(req);
@@ -316,4 +316,34 @@ void DataMode::writeBinaryData() {
 
 void DataMode::setModePointer(int* modePtr) {
     currentModePtr = modePtr;
+}
+
+void DataMode::setUTCTimestamp(unsigned long timestamp) {
+    utcTimestamp = timestamp;
+    Serial.print("UTC Time grabbed: ");
+    Serial.println(utcTimestamp);
+}
+
+float* DataMode::getAxSamples() {
+    return ax_samples;
+}
+
+float* DataMode::getAySamples() {
+    return ay_samples;
+}
+
+float* DataMode::getAzSamples() {
+    return az_samples;
+}
+
+int DataMode::getCollectedSamples() {
+    return collected_samples;
+}
+
+float DataMode::getCurrentODR() {
+    return current_odr;
+}
+
+unsigned long DataMode::getLoggingDuration() {
+    return logging_duration;
 }
