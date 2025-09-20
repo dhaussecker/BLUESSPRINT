@@ -246,3 +246,53 @@ void CollectMode::sendStateLog(unsigned long utcTimestamp, unsigned long current
         Serial.println("❌ Failed to send statelog");
     }
 }
+
+void CollectMode::sendAllStateEvents(unsigned long* startTimes, unsigned long* endTimes, int* stateLogs, int eventCount) {
+    Serial.print("📊 SENDING ALL STATE EVENTS - Count: ");
+    Serial.println(eventCount);
+
+    if (eventCount == 0) {
+        Serial.println("📭 No state events to send");
+        return;
+    }
+
+    // Send Format 2 with all state events
+    J *req = notecard->newRequest("note.add");
+    JAddStringToObject(req, "file", "data.qo");
+    JAddBoolToObject(req, "sync", true);
+
+    J *body = JAddObjectToObject(req, "body");
+    if (body) {
+        // Create entries array with all state events
+        J *entries = JCreateArray();
+
+        for (int i = 0; i < eventCount; i++) {
+            // Entry format: [statelog, startTime, endTime]
+            J *entry = JCreateArray();
+            JAddItemToArray(entry, JCreateNumber(stateLogs[i]));
+            JAddItemToArray(entry, JCreateNumber(startTimes[i]));
+            JAddItemToArray(entry, JCreateNumber(endTimes[i]));
+            JAddItemToArray(entries, entry);
+
+            Serial.print("📝 Event ");
+            Serial.print(i + 1);
+            Serial.print(": [");
+            Serial.print(stateLogs[i]);
+            Serial.print(", ");
+            Serial.print(startTimes[i]);
+            Serial.print(", ");
+            Serial.print(endTimes[i]);
+            Serial.println("]");
+        }
+
+        JAddItemToObject(body, "entries", entries);
+    }
+
+    bool success = notecard->sendRequest(req);
+
+    if (success) {
+        Serial.println("✅ Successfully sent all state events to data.qo");
+    } else {
+        Serial.println("❌ Failed to send state events");
+    }
+}

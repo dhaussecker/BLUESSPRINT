@@ -31,6 +31,9 @@ public:
     void sendTimestampOnly();  // Send only timestamp data
     void sendStateLog(unsigned long utcTimestamp, unsigned long currentRTCTime);  // Send statelog format
 
+    // Send state events using simple arrays
+    void sendAllStateEvents(unsigned long* startTimes, unsigned long* endTimes, int* stateLogs, int eventCount);
+
 private:
     void sendAccelerationData();  // For now, just acceleration data
 };
