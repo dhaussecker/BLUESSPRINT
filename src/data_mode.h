@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Notecard.h>
+#include "LSM6DSOXSensor.h"
 
 // Data storage for batching (same as previous example)
 #define MAX_SAMPLES 300
@@ -36,6 +37,9 @@ private:
     // UTC timestamp storage
     unsigned long utcTimestamp;
 
+    // MLC-enabled accelerometer
+    LSM6DSOXSensor* accelerometer;
+
 public:
     DataMode();
 
@@ -55,6 +59,9 @@ public:
     int getCollectedSamples();
     float getCurrentODR();
     unsigned long getLoggingDuration();
+
+    // MLC state reading
+    uint8_t getCurrentMlcState();
 
 private:
     bool initializeAccelerometer();

@@ -7,7 +7,8 @@
       "Read(//usr/**)",
       "Bash(~/.platformio/penv/bin/platformio run)",
       "Read(//home/**)",
-      "Read(//mnt/c/Users/dylan/**)"
+      "Read(//mnt/c/Users/dylan/**)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []

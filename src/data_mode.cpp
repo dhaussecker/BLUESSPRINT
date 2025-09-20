@@ -1,6 +1,6 @@
 #include "data_mode.h"
 #include "LSM6DSOXSensor.h"
-#include "movement.h"
+#include "sprint.h"
 
 // LSM6DSOX I2C addresses
 #define LSM6DSOX_ADDRESS_LOW  0x6A
@@ -21,7 +21,7 @@ bool lsm6dsox_found = false;
 
 DataMode::DataMode() : initialized(false), accelerometerReady(false), lastSample(0),
     isLogging(false), loggingStartTime(0), current_odr(26.0f),
-    logging_duration(10000), collected_samples(0), notecard(nullptr), currentModePtr(nullptr), utcTimestamp(0) {
+    logging_duration(10000), collected_samples(0), notecard(nullptr), currentModePtr(nullptr), utcTimestamp(0), accelerometer(nullptr) {
 
     // Calculate sample interval from ODR
     sample_interval_ms = (unsigned long)(1000.0f / current_odr);
@@ -114,8 +114,8 @@ bool DataMode::initializeAccelerometer() {
     // Load MLC configuration for motion detection
     Serial.println("Loading MLC configuration...");
 
-    ProgramPointer = (ucf_line_t *)movement;
-    TotalNumberOfLine = sizeof(movement) / sizeof(ucf_line_t);
+    ProgramPointer = (ucf_line_t *)sprint;
+    TotalNumberOfLine = sizeof(sprint) / sizeof(ucf_line_t);
     Serial.print("UCF Number of Lines: ");
     Serial.println(TotalNumberOfLine);
 
@@ -128,6 +128,9 @@ bool DataMode::initializeAccelerometer() {
     }
 
     Serial.println("MLC program loaded successfully");
+
+    // Store accelerometer reference for MLC state reading
+    accelerometer = &AccGyr;
 
     delay(100); // Allow sensor to stabilize
 
@@ -346,4 +349,17 @@ float DataMode::getCurrentODR() {
 
 unsigned long DataMode::getLoggingDuration() {
     return logging_duration;
+}
+
+uint8_t DataMode::getCurrentMlcState() {
+    if (accelerometer == nullptr) {
+        Serial.println("Accelerometer not initialized");
+        return 0;
+    }
+
+    uint8_t mlc_out[8];
+    if (accelerometer->Get_MLC_Output(mlc_out) == LSM6DSOX_OK) {
+        return mlc_out[0]; // Return first MLC output
+    }
+    return 0;
 }

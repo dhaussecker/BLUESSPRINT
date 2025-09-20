@@ -34,18 +34,26 @@ void onWakePin() {
     wokeByPin = true;
 }
 
+// Read current MLC state from data mode
+uint8_t getCurrentMlcState() {
+    return dataMode.getCurrentMlcState();
+}
+
 // Add state event to the log
 void addStateEvent(unsigned long startTime, unsigned long endTime) {
     if (stateEventCount < MAX_STATE_EVENTS) {
         stateEvents[stateEventCount].startTime = startTime;
         stateEvents[stateEventCount].endTime = endTime;
-        stateEvents[stateEventCount].stateLog = 0;  // Always 0 for now
+        stateEvents[stateEventCount].stateLog = getCurrentMlcState();  // Use actual MLC state
         stateEventCount++;
 
         Serial.print("📝 State event added: ");
         Serial.print(startTime);
         Serial.print(" → ");
-        Serial.println(endTime);
+        Serial.print(endTime);
+        Serial.print(" (MLC State: ");
+        Serial.print(stateEvents[stateEventCount-1].stateLog);
+        Serial.println(")");
     } else {
         Serial.println("⚠️  State event buffer full!");
     }
@@ -55,6 +63,15 @@ void addStateEvent(unsigned long startTime, unsigned long endTime) {
 void handleInterruptWake() {
     if (wokeByPin) {
         wokeByPin = false;  // Clear flag
+
+        // Quick double blink to indicate interrupt detected
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(100);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(100);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(100);
+        digitalWrite(LED_BUILTIN, LOW);
 
         unsigned long currentTime = rtc.isTimeSet() ? rtc.getEpoch() : 0;
         Serial.print("🔔 INTERRUPT TRIGGERED at RTC time: ");
