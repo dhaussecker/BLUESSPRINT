@@ -112,8 +112,23 @@ void setup() {
   if (req != NULL) {
     JAddStringToObject(req, "product", "com.gmail.taulabtech:taulabtest");
     JAddStringToObject(req, "mode", "periodic");
-    JAddNumberToObject(req, "outbound", 5);
-    JAddNumberToObject(req, "inbound", 60);
+    JAddStringToObject(req, "voutbound", "usb:60;high:60;normal:120;low:360;dead:0");
+    JAddStringToObject(req, "vinbound", "usb:1440;high:1440;normal:2880;low:10080;dead:0");
+    notecard.sendRequest(req);
+  }
+    // Configure GPS location mode
+  req = notecard.newRequest("card.location.mode");
+  if (req != NULL) {
+    JAddStringToObject(req, "mode", "periodic");
+    JAddStringToObject(req, "vseconds", "usb:1800;high:1800;normal:1800;low:86400;dead:0");
+    notecard.sendRequest(req);
+  }
+  // Enable location tracking
+  req = notecard.newRequest("card.location.track");
+  if (req != NULL) {
+    JAddBoolToObject(req, "start", true);
+    JAddBoolToObject(req, "heartbeat", true);
+    JAddNumberToObject(req, "hours", 24);
     notecard.sendRequest(req);
   }
 
@@ -195,12 +210,12 @@ void loop() {
     return; // Try again
   }
 
-  // Enter DEEP SLEEP for 3 minutes (with interrupt wake capability)
-  Serial.println("💤 ENTERING DEEP SLEEP for 3 minutes (interrupt on D6 enabled)");
+  // Enter DEEP SLEEP for 30 minutes (with interrupt wake capability)
+  Serial.println("💤 ENTERING DEEP SLEEP for 30 minutes (interrupt on D6 enabled)");
 
   // Sleep with interrupt handling loop - FIXED TIMING
   unsigned long cycleStartTime = storedUTCTimestamp; // Original cycle start time
-  unsigned long targetWakeTime = cycleStartTime + 180; // 3 minutes from CYCLE START
+  unsigned long targetWakeTime = cycleStartTime + 1800; // 30 minutes from CYCLE START
 
   Serial.print("🕐 Cycle start: ");
   Serial.print(cycleStartTime);
@@ -212,8 +227,8 @@ void loop() {
 
     // Calculate remaining sleep time from ORIGINAL cycle start
     if (currentTime >= targetWakeTime) {
-      Serial.println("⏰ 3-minute cycle complete - breaking out of sleep");
-      break; // 3 minutes elapsed since cycle start
+      Serial.println("⏰ 30-minute cycle complete - breaking out of sleep");
+      break; // 30 minutes elapsed since cycle start
     }
 
     unsigned long remainingSeconds = targetWakeTime - currentTime;
@@ -221,10 +236,10 @@ void loop() {
 
     Serial.print("💤 Sleeping for ");
     Serial.print(remainingSeconds);
-    Serial.println(" more seconds until 3-minute cycle complete");
+    Serial.println(" more seconds until 30-minute cycle complete");
 
-    // Deep sleep for remaining time (or max 3 minutes)
-    unsigned long sleepTime = remainingSleepMS > 180000 ? 180000 : remainingSleepMS;
+    // Deep sleep for remaining time (or max 30 minutes)
+    unsigned long sleepTime = remainingSleepMS > 1800000 ? 1800000 : remainingSleepMS;
     LowPower.deepSleep(sleepTime);
 
     // Check if we woke by interrupt
@@ -235,10 +250,10 @@ void loop() {
       // Continue loop to check remaining time
       continue;
     } else {
-      // Woke by timer - check if full 3 minutes elapsed
+      // Woke by timer - check if full 30 minutes elapsed
       unsigned long newCurrentTime = rtc.isTimeSet() ? rtc.getEpoch() : 0;
       if (newCurrentTime >= targetWakeTime) {
-        Serial.println("⏰ 3-minute timer completed");
+        Serial.println("⏰ 30-minute timer completed");
         break;
       }
       // If not, continue sleeping
