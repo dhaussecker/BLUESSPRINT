@@ -1,6 +1,6 @@
 #include "data_mode.h"
 #include "LSM6DSOXSensor.h"
-#include "sprint.h"
+#include "onoff.h"
 
 // LSM6DSOX I2C addresses
 #define LSM6DSOX_ADDRESS_LOW  0x6A
@@ -114,8 +114,8 @@ bool DataMode::initializeAccelerometer() {
     // Load MLC configuration for motion detection
     Serial.println("Loading MLC configuration...");
 
-    ProgramPointer = (ucf_line_t *)sprint;
-    TotalNumberOfLine = sizeof(sprint) / sizeof(ucf_line_t);
+    ProgramPointer = (ucf_line_t *)onoff;
+    TotalNumberOfLine = sizeof(onoff) / sizeof(ucf_line_t);
     Serial.print("UCF Number of Lines: ");
     Serial.println(TotalNumberOfLine);
 

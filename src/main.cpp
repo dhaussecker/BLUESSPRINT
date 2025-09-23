@@ -28,6 +28,8 @@ struct StateEvent {
 StateEvent stateEvents[MAX_STATE_EVENTS];
 int stateEventCount = 0;
 unsigned long lastStateTime = 0;
+uint8_t previousMlcState = 0;
+int interruptOccurred = 0;  // Track if any interrupts happened during cycle
 
 // Interrupt Service Routine
 void onWakePin() {
@@ -40,11 +42,11 @@ uint8_t getCurrentMlcState() {
 }
 
 // Add state event to the log
-void addStateEvent(unsigned long startTime, unsigned long endTime) {
+void addStateEvent(unsigned long startTime, unsigned long endTime, uint8_t mlcState) {
     if (stateEventCount < MAX_STATE_EVENTS) {
         stateEvents[stateEventCount].startTime = startTime;
         stateEvents[stateEventCount].endTime = endTime;
-        stateEvents[stateEventCount].stateLog = getCurrentMlcState();  // Use actual MLC state
+        stateEvents[stateEventCount].stateLog = mlcState;  // Use provided MLC state
         stateEventCount++;
 
         Serial.print("📝 State event added: ");
@@ -77,12 +79,16 @@ void handleInterruptWake() {
         Serial.print("🔔 INTERRUPT TRIGGERED at RTC time: ");
         Serial.println(currentTime);
 
+        // Mark that an interrupt occurred this cycle
+        interruptOccurred = 1;
+
         if (lastStateTime > 0) {
             // Log the previous state (from lastStateTime to current time)
-            addStateEvent(lastStateTime, currentTime);
+            addStateEvent(lastStateTime, currentTime, previousMlcState);
         }
 
-        // Update last state time for next transition
+        // Update previous state and last state time for next transition
+        previousMlcState = getCurrentMlcState();
         lastStateTime = currentTime;
 
         Serial.println("💤 Going back to deep sleep immediately");
@@ -193,13 +199,13 @@ void loop() {
     rtc.setEpoch(result.unixTime);
     Serial.println("🕐 RTC synchronized with Notecard time");
 
-    // Initialize state logging - add START event
+    // Initialize state logging - store start time but don't log yet (power optimization)
     lastStateTime = result.unixTime;
     stateEventCount = 0;  // Reset state events for new cycle
+    interruptOccurred = 0;  // Reset interrupt counter for new cycle
+    previousMlcState = getCurrentMlcState();  // Store initial state
 
-    // Add START event (same time twice)
-    addStateEvent(result.unixTime, result.unixTime);
-    Serial.print("🏁 START event added: ");
+    Serial.print("🏁 Cycle start time stored: ");
     Serial.println(lastStateTime);
 
     Serial.print("✅ UTC timestamp stored locally: ");
@@ -261,25 +267,36 @@ void loop() {
   }
 
   // Wake up by timer expiry - normal cycle
-  Serial.println("⏰ WAKE UP BY TIMER - Sending data.qo with Format 2");
+  Serial.println("⏰ WAKE UP BY TIMER - Checking for state changes...");
 
-  // Get current RTC time (should be ~3 minutes after stored time)
+  // Check if any interrupts occurred during this 30-minute cycle
+  if (interruptOccurred == 0) {
+    Serial.println("💤 No interrupts occurred - skipping data transmission to save power");
+    Serial.println("🔄 Going back to sleep for another 30 minutes...");
+    return; // Go back to sleep immediately - huge power savings!
+  }
+
+  Serial.println("📊 Interrupts detected - proceeding with data transmission");
+
+  // Get current RTC time (should be ~30 minutes after stored time)
   unsigned long currentRTCTime = 0;
   if (rtc.isTimeSet()) {
     currentRTCTime = rtc.getEpoch();
     Serial.print("🕐 Current RTC time: ");
     Serial.println(currentRTCTime);
-    Serial.print("⏱️  Expected ~3 minutes later than: ");
+    Serial.print("⏱️  Expected ~30 minutes later than: ");
     Serial.println(storedUTCTimestamp);
   } else {
     Serial.println("❌ RTC not set, using fallback");
-    currentRTCTime = storedUTCTimestamp + 180; // Fallback: assume 3 minutes passed
+    currentRTCTime = storedUTCTimestamp + 1800; // Fallback: assume 30 minutes passed
   }
 
-  // Add END event (same time twice)
-  addStateEvent(currentRTCTime, currentRTCTime);
-  Serial.print("🔚 END event added: ");
-  Serial.println(currentRTCTime);
+  // Add final state event with current state lasting until now
+  if (lastStateTime > 0) {
+    addStateEvent(lastStateTime, currentRTCTime, previousMlcState);
+    Serial.print("🔚 Final state event added: ");
+    Serial.println(currentRTCTime);
+  }
 
   // Extract arrays from StateEvent structs
   unsigned long startTimes[MAX_STATE_EVENTS];
