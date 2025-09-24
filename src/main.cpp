@@ -72,14 +72,18 @@ void handleInterruptWake() {
         // Mark that an interrupt occurred this cycle
         interruptOccurred = 1;
 
-        if (lastStateTime > 0) {
+        // Get current MLC state to check for actual state change
+        uint8_t currentMlcState = getCurrentMlcState();
+
+        // Only log if state actually changed
+        if (lastStateTime > 0 && currentMlcState != previousMlcState) {
             // Log the previous state (from lastStateTime to current time)
             addStateEvent(lastStateTime, currentTime, previousMlcState);
-        }
 
-        // Update previous state and last state time for next transition
-        previousMlcState = getCurrentMlcState();
-        lastStateTime = currentTime;
+            // Update previous state and last state time for next transition
+            previousMlcState = currentMlcState;
+            lastStateTime = currentTime;
+        }
 
     }
 }
@@ -180,11 +184,15 @@ void loop() {
     // Set RTC to the actual UTC time (like EXAMPLECODE)
     rtc.setEpoch(result.unixTime);
 
-    // Initialize state logging - store start time but don't log yet (power optimization)
-    lastStateTime = result.unixTime;
-    stateEventCount = 0;  // Reset state events for new cycle
-    interruptOccurred = 0;  // Reset interrupt counter for new cycle
-    previousMlcState = getCurrentMlcState();  // Store initial state
+    // Initialize state logging - preserve continuity across cycles
+    // Only reset on very first initialization (when stateEventCount is 0)
+    if (stateEventCount == 0 && lastStateTime == 0) {
+        // First-time initialization
+        lastStateTime = result.unixTime;
+        previousMlcState = getCurrentMlcState();
+    }
+    // Always reset interrupt counter for new cycle
+    interruptOccurred = 0;
 
 
   } else {
@@ -196,7 +204,7 @@ void loop() {
 
   // Sleep with interrupt handling loop - FIXED TIMING
   unsigned long cycleStartTime = storedUTCTimestamp; // Original cycle start time
-  unsigned long targetWakeTime = cycleStartTime + 300; // 5 minutes from CYCLE START
+  unsigned long targetWakeTime = cycleStartTime + 1800; // 30 minutes from CYCLE START
 
 
   while (true) {
@@ -244,11 +252,12 @@ void loop() {
   if (rtc.isTimeSet()) {
     currentRTCTime = rtc.getEpoch();
   } else {
-    currentRTCTime = storedUTCTimestamp + 300; // Fallback: assume 5 minutes passed
+    currentRTCTime = storedUTCTimestamp + 1800; // Fallback: assume 30 minutes passed
   }
 
   // Add final state event with current state lasting until now
-  if (lastStateTime > 0) {
+  // Only add if we have accumulated time in the current state
+  if (lastStateTime > 0 && lastStateTime < currentRTCTime) {
     addStateEvent(lastStateTime, currentRTCTime, previousMlcState);
   }
 
@@ -265,6 +274,23 @@ void loop() {
 
   // Send data.qo with Format 2 (all state events)
   collectMode.sendAllStateEvents(startTimes, endTimes, stateLogs, stateEventCount);
+
+  // Disable interrupts during critical cleanup to prevent race conditions
+  noInterrupts();
+
+  // CRITICAL: Clear state array after transmission to prevent duplicates
+  // Preserve final state timing for continuity
+  if (stateEventCount > 0) {
+    // Get the final state's end time and state for next cycle continuity
+    lastStateTime = stateEvents[stateEventCount - 1].endTime;
+    previousMlcState = stateEvents[stateEventCount - 1].stateLog;
+  }
+
+  // Clear the state array and reset counter
+  stateEventCount = 0;
+
+  // Re-enable interrupts
+  interrupts();
 
   // Loop back to COLLECT MODE (ENTER HERE point)
 }
