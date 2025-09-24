@@ -14,23 +14,19 @@ TimestampResult CollectMode::getNotecardTimestamp() {
     TimestampResult result = {0, false};
 
     if (notecard == nullptr) {
-        Serial.println("ERROR: Notecard not initialized in CollectMode");
         return result;
     }
 
-    Serial.println("🕐 COLLECT_MODE: Requesting timestamp from Notecard...");
 
     // Request current time from Notecard
     J *req = notecard->newRequest("card.time");
     if (req == NULL) {
-        Serial.println("❌ Failed to create card.time request");
         return result;
     }
 
     // Get response
     J *rsp = notecard->requestAndResponse(req);
     if (rsp == NULL) {
-        Serial.println("❌ Failed to get response from card.time");
         return result;
     }
 
@@ -38,10 +34,7 @@ TimestampResult CollectMode::getNotecardTimestamp() {
     if (JHasObjectItem(rsp, "time")) {
         result.unixTime = JGetNumber(rsp, "time");
         result.success = true;
-        Serial.print("✅ TIMESTAMP COLLECTED! Unix time: ");
-        Serial.println(result.unixTime);
     } else {
-        Serial.println("❌ No time field in Notecard response");
     }
 
     // Clean up response
@@ -53,8 +46,6 @@ TimestampResult CollectMode::getNotecardTimestamp() {
 void CollectMode::storeTimestamp(unsigned long timestamp) {
     storedTimestamp = timestamp;
     hasStoredTimestamp = (timestamp > 0);
-    Serial.print("📦 TIMESTAMP STORED: ");
-    Serial.println(storedTimestamp);
 }
 
 unsigned long CollectMode::getStoredTimestamp() {
@@ -67,35 +58,26 @@ bool CollectMode::hasValidStoredTimestamp() {
 
 void CollectMode::sendData() {
     if (!hasValidStoredTimestamp()) {
-        Serial.println("⚠️  No stored timestamp, skipping data send");
         return;
     }
 
-    Serial.println("📤 SENDING DATA with stored timestamp...");
     sendAccelerationData();
 
     // Clear stored timestamp after sending
     hasStoredTimestamp = false;
     storedTimestamp = 0;
-    Serial.println("✅ Data sent, timestamp cleared");
 }
 
 void CollectMode::sendAccelerationData() {
     if (dataMode == nullptr) {
-        Serial.println("❌ DataMode not initialized");
         return;
     }
 
     int samples = dataMode->getCollectedSamples();
     if (samples <= 0) {
-        Serial.println("📭 No acceleration data to send");
         return;
     }
 
-    Serial.print("📊 Sending ");
-    Serial.print(samples);
-    Serial.print(" acceleration samples with timestamp: ");
-    Serial.println(storedTimestamp);
 
     // Get data arrays from data_mode
     float* ax_samples = dataMode->getAxSamples();
@@ -108,7 +90,6 @@ void CollectMode::sendAccelerationData() {
     // Create buffer with all data
     uint8_t* all_data = (uint8_t*)malloc(total_size);
     if (all_data == NULL) {
-        Serial.println("❌ Failed to allocate memory for data");
         return;
     }
 
@@ -124,7 +105,6 @@ void CollectMode::sendAccelerationData() {
     int encodedLen = ((total_size + 2) / 3) * 4 + 1;
     char* encoded = (char*)malloc(encodedLen);
     if (encoded == NULL) {
-        Serial.println("❌ Failed to allocate memory for encoded data");
         free(all_data);
         return;
     }
@@ -149,9 +129,7 @@ void CollectMode::sendAccelerationData() {
     bool success = notecard->sendRequest(req);
 
     if (success) {
-        Serial.println("✅ Successfully sent acceleration data as base64 JSON note");
     } else {
-        Serial.println("❌ Failed to send acceleration data");
     }
 
     // Clean up
@@ -161,12 +139,9 @@ void CollectMode::sendAccelerationData() {
 
 void CollectMode::sendTimestampOnly() {
     if (!hasValidStoredTimestamp()) {
-        Serial.println("⚠️  No stored timestamp, skipping timestamp send");
         return;
     }
 
-    Serial.print("🕐 SENDING TIMESTAMP ONLY: ");
-    Serial.println(storedTimestamp);
 
     // Send just timestamp as JSON note - Format 2
     J *req = notecard->newRequest("note.add");
@@ -181,23 +156,15 @@ void CollectMode::sendTimestampOnly() {
     bool success = notecard->sendRequest(req);
 
     if (success) {
-        Serial.println("✅ Successfully sent timestamp-only note");
     } else {
-        Serial.println("❌ Failed to send timestamp");
     }
 
     // Clear stored timestamp after sending
     hasStoredTimestamp = false;
     storedTimestamp = 0;
-    Serial.println("🗑️  Timestamp cleared");
 }
 
 void CollectMode::sendStateLog(unsigned long utcTimestamp, unsigned long currentRTCTime) {
-    Serial.println("📊 SENDING STATELOG FORMAT 2");
-    Serial.print("Start time: ");
-    Serial.print(utcTimestamp);
-    Serial.print(", End time: ");
-    Serial.println(currentRTCTime);
 
     // Use the timestamps directly
     unsigned long startTime = utcTimestamp;    // When we started data logging
@@ -234,25 +201,13 @@ void CollectMode::sendStateLog(unsigned long utcTimestamp, unsigned long current
     bool success = notecard->sendRequest(req);
 
     if (success) {
-        Serial.println("✅ Successfully sent statelog data.qo");
-        Serial.print("📅 Start: ");
-        Serial.print(startTime);
-        Serial.print(" End: ");
-        Serial.print(endTime);
-        Serial.print(" Duration: ");
-        Serial.print(currentRTCTime);
-        Serial.println(" seconds");
     } else {
-        Serial.println("❌ Failed to send statelog");
     }
 }
 
 void CollectMode::sendAllStateEvents(unsigned long* startTimes, unsigned long* endTimes, int* stateLogs, int eventCount) {
-    Serial.print("📊 SENDING ALL STATE EVENTS - Count: ");
-    Serial.println(eventCount);
 
     if (eventCount == 0) {
-        Serial.println("📭 No state events to send");
         return;
     }
 
@@ -274,15 +229,6 @@ void CollectMode::sendAllStateEvents(unsigned long* startTimes, unsigned long* e
             JAddItemToArray(entry, JCreateNumber(endTimes[i]));
             JAddItemToArray(entries, entry);
 
-            Serial.print("📝 Event ");
-            Serial.print(i + 1);
-            Serial.print(": [");
-            Serial.print(stateLogs[i]);
-            Serial.print(", ");
-            Serial.print(startTimes[i]);
-            Serial.print(", ");
-            Serial.print(endTimes[i]);
-            Serial.println("]");
         }
 
         JAddItemToObject(body, "entries", entries);
@@ -291,8 +237,6 @@ void CollectMode::sendAllStateEvents(unsigned long* startTimes, unsigned long* e
     bool success = notecard->sendRequest(req);
 
     if (success) {
-        Serial.println("✅ Successfully sent all state events to data.qo");
     } else {
-        Serial.println("❌ Failed to send state events");
     }
 }
