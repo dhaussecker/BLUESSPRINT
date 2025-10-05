@@ -132,6 +132,14 @@ void setup() {
     notecard.sendRequest(req);
   }
 
+  // Enable OTA MCU firmware updates
+  req = notecard.newRequest("card.dfu");
+  if (req != NULL) {
+    JAddStringToObject(req, "name", "stm32");
+    JAddBoolToObject(req, "on", true);
+    notecard.sendRequest(req);
+  }
+
   // Initialize LSM6DSOX sensor (don't auto-start logging)
   dataMode.begin(&notecard);
 
